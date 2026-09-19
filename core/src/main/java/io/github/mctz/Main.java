@@ -26,9 +26,14 @@ public class Main extends ApplicationAdapter {
     private Stage escenario;
     private Skin skin;
     private News[] bancoNoticias;
-    private Nodo escenaRoot;
-    private Nodo root;
-    private Nodo nodoActual;
+    private Nodo escenaActual; 
+    private News noticiaActual;
+    
+    private int turnosRestantes = 6; 
+    private int conteoActividad = 0;
+    private int conteoErrores = 0; 
+    private int conteoAciertos = 0; 
+    private Label titular; 
 
     @Override
     public void create () {
@@ -69,8 +74,10 @@ public class Main extends ApplicationAdapter {
         bancoNoticias[28] = new News("COMUNIDAD:\nVecinos organizan jornada\nde limpieza en el río.", false, "Social");
         bancoNoticias[29] = new News("ELECCIONES:\nÚltimo día para inscribir\ntu cédula de votación.", false, "Política" );
 
-        root = generarArbolDinamico(6);
-        nodoActual = root; 
+        ArbolEscenas creadorEscenas = new ArbolEscenas();
+        escenaActual = creadorEscenas.generarArbol(); 
+
+        noticiaActual = bancoNoticias[MathUtils.random(0, 29)];
 
         //COMPONENTES VISUALES UIX------------------------------------------------
 
@@ -100,7 +107,7 @@ public class Main extends ApplicationAdapter {
 
         Image fondoCelular = new Image(skin.getRegion("fondo_telefono"));
         
-        final Label titular = new Label(nodoActual.actualNews.titular, estiloTexto);
+        titular = new Label(noticiaActual.titular, estiloTexto);
         titular.setAlignment(Align.center);
 
         TextButton btnVerificar = new TextButton("Verificar", estiloBoton);
@@ -122,15 +129,13 @@ public class Main extends ApplicationAdapter {
         raizUI.add(pilaCelular).width(340).height(620);
         escenario.addActor(raizUI);
 
-        // ----------------------------------------------------------------------------------------------------------------------------
-
-        //Para cuando se detecte el click en el botón--------------------------------------------------------------------------------
+        // ------------------------------------------------------botones----------------------------------------------------------------------
 
         btnVerificar.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                if (nodoActual != null) {
-                    if (nodoActual.actualNews.esFalsa) {
+                if (noticiaActual != null && turnosRestantes > 0) {
+                    if (noticiaActual.esFalsa) {
                         titular.setText("¡ALERTA!\nEs una noticia FALSA.");
                         titular.setColor(Color.valueOf("#DF0E0B")); 
                     } else {
@@ -144,117 +149,69 @@ public class Main extends ApplicationAdapter {
         btnCompartir.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                if (nodoActual != null) {
-                    nodoActual = viajarPorElArbol(titular, true, nodoActual);
-                }
+                procesarTurno(true); 
             }
         });
 
         btnIgnorar.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                if (nodoActual != null) {
-                    nodoActual = viajarPorElArbol(titular, false, nodoActual);
-                }
+                procesarTurno(false); 
             }
         });
 
-        //Aquí llamo a la fun q me va a permitir elegir la escena buena o mala y random  
-        if(rumboJuego(factorEquilibrio(nodoActual)) < 6){
-            
-        }
-        
         pixTelefono.dispose();
         btnPix.dispose();
     }
     
-    // -------------------------------------------Aplicación del árbol-----------------------------------------------------
-    public Nodo generarArbolDinamico(int noticiasRestantes) {
-        if (noticiasRestantes == 0) {
-            return null;
-        }
-        News noticiaRandom = bancoNoticias[MathUtils.random(0, 29)]; //Aquí uso el elemento random 
-        Nodo nuevoNodo = new Nodo(noticiaRandom);
-        nuevoNodo.setConsecuencias(generarArbolDinamico(noticiasRestantes - 1), generarArbolDinamico(noticiasRestantes - 1));
-        return nuevoNodo;
-    }
-
-
-//esto está para saber el rumbo de la historia
-    public int altura(Nodo nodo) {
-        if (nodo == null) {
-            return 0;
-        }
-        return 1 + Math.max(altura(nodo.nodoIzq), altura(nodo.nodoDer));
-    }
-
-
-    public int factorEquilibrio(Nodo nodo) {
-        if (nodo == null) {
-            return 0;
-        }
-        return altura(nodo.nodoIzq) - altura(nodo.nodoDer);
-    }
-
-
-    public void inOrden(Nodo nodito){
-        if(nodito == null){
-            return;
+    // ------------------------------------------- Procesamiento de Turno -----------------------------------------------------
+    
+    public void procesarTurno(boolean compartido) {
+        if (turnosRestantes <= 0) return; 
+        
+        boolean esFalsa = noticiaActual.esFalsa;
+        boolean malaDecision = (compartido && esFalsa) || (!compartido && !esFalsa);
+        
+        if (malaDecision) {
+            conteoErrores++;
         } else {
-            inOrden(nodito.nodoIzq);
-            System.out.println(nodito.actualNews.titular+", ");
-            inOrden(nodito.nodoDer);
-        }
-    }
-
-    public Nodo viajarPorElArbol(Label titular, boolean compartido, Nodo nodito) {
-        if(nodito == null){
-            return null;
+            conteoAciertos++;
         }
         
-        nodito.nodoIzq = viajarPorElArbol(titular, compartido, nodito.nodoIzq);
+        conteoActividad++;
+        turnosRestantes--;
         
-        if ((compartido && !nodito.actualNews.esFalsa )||(!compartido && nodito.actualNews.esFalsa)) {
-            nodito.nodoDer = viajarPorElArbol(titular, compartido, nodito.nodoDer);
-        } else if((compartido && nodito.actualNews.esFalsa)||(!compartido && !nodito.actualNews.esFalsa)) {
-            if (nodito.nodoIzq == null) {
-                nodito = nodito.nodoDer;
-            } else if (nodito.nodoDer == null) {
-                nodito = nodito.nodoIzq;
-            } else {
-                Nodo temporal = nodito.nodoDer;
-                while (temporal.nodoIzq != null) {
-                    temporal = temporal.nodoIzq;
+        if (conteoActividad == 2) {
+            
+            if (conteoErrores > conteoAciertos) {
+                if (escenaActual.nodoIzq != null) {
+                    escenaActual = escenaActual.nodoIzq;
                 }
-                temporal.nodoIzq = nodito.nodoIzq;
-                nodito = nodito.nodoDer;
-            }
+            } 
+            else if (conteoAciertos > conteoErrores) {
+                if (escenaActual.nodoDer != null) {
+                    escenaActual = escenaActual.nodoDer;
+                }
+            } 
+            
+            conteoActividad = 0;
+            conteoErrores = 0;
+            conteoAciertos = 0;
         }
         
-        nodoActual = nodito;
-        
-        if (nodoActual != null) {
-            titular.setText(nodoActual.actualNews.titular);
+        if (turnosRestantes > 0) {
+            noticiaActual = bancoNoticias[MathUtils.random(0, 29)];
+            titular.setText(noticiaActual.titular);
             titular.setColor(Color.valueOf("#3baaa7")); 
         } else {
-            titular.setText("FIN DEL DÍA\nHas procesado todas\nlas noticias de hoy.");
-            titular.setColor(Color.valueOf("#591D67")); 
-        }
-        return nodito;
-    }
-
-    public int rumboJuego(int fe){
-
-        if (fe > 0) {
-            int num=MathUtils.random(0, 5);
-            return num; 
-        } else if (fe < 0) {
-            int num=MathUtils.random(6, 10);
-            return num; 
-        } else {
-            return 11; 
+            if (escenaActual != null) {
+                titular.setText("FIN DEL DÍA\n\n" + escenaActual.actualNews.titular);
+                titular.setColor(Color.valueOf("#591D67")); 
+            }
         }
     }
+
+    // ------------------------------------------------------------------------------------------------------------------------
 
     @Override
     public void render () {
@@ -271,10 +228,11 @@ public class Main extends ApplicationAdapter {
     public void resize(int width, int height) {
         escenario.getViewport().update(width, height, true);
     }
-
+    
     @Override
     public void dispose () {
         escenario.dispose();
         skin.dispose();
     }
+
 }

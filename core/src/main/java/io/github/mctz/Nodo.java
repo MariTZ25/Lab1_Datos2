@@ -11,9 +11,12 @@ public class Nodo {
         this.nodoIzq = null;
         this.nodoDer = null;
     }
-
-    public void setConsecuencias(Nodo izquierda, Nodo derecha) {
-        this.nodoIzq = izquierda;
-        this.nodoDer = derecha;
+public void setIzq(Nodo nodoIzq) {
+        this.nodoIzq = nodoIzq;
     }
+
+    public void setDer(Nodo nodoDer) {
+        this.nodoDer = nodoDer;
+    }
+    
 }
