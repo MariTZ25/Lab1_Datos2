@@ -30,7 +30,7 @@ public class ArbolEscenas {
         Nodo duda = new Nodo(txtDuda);
         
         News txtBueno2 = new News("ESCENA BUENA 2", false, "Escena");
-        Nodo bueno2 = new Nodo(txtBueno2); // ...sigue acertando
+        Nodo bueno2 = new Nodo(txtBueno2); 
         
         bueno1.nodoIzq = duda;
         bueno1.nodoDer = bueno2;

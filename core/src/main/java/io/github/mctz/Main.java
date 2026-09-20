@@ -18,6 +18,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.Scaling; // NUEVO: Para que la imagen no se deforme
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
@@ -33,7 +34,12 @@ public class Main extends ApplicationAdapter {
     private int conteoActividad = 0;
     private int conteoErrores = 0; 
     private int conteoAciertos = 0; 
+    
     private Label titular; 
+    private Label lblTendencias; 
+    private Texture texturaTelefono;
+    private StringBuilder tendenciasBuilder; 
+    private BitmapFont fuenteTendencias; // NUEVO: Fuente más pequeña para los #
 
     @Override
     public void create () {
@@ -79,12 +85,13 @@ public class Main extends ApplicationAdapter {
 
         noticiaActual = bancoNoticias[MathUtils.random(0, 29)];
 
-        //COMPONENTES VISUALES UIX------------------------------------------------
-
         skin = new Skin();
         BitmapFont fuenteBotones = new BitmapFont(Gdx.files.internal("MilanyFont.fnt"));
         fuenteBotones.getData().setScale(0.3f); 
         skin.add("fuente", fuenteBotones);
+        
+        fuenteTendencias = new BitmapFont(Gdx.files.internal("MilanyFont.fnt"));
+        fuenteTendencias.getData().setScale(0.14f); 
         
         Pixmap pixTelefono = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
         pixTelefono.setColor(Color.valueOf("#E6EEEE")); 
@@ -99,16 +106,29 @@ public class Main extends ApplicationAdapter {
         Label.LabelStyle estiloTexto = new Label.LabelStyle();
         estiloTexto.font = skin.getFont("fuente");
         estiloTexto.fontColor = Color.valueOf("#3baaa7"); 
+        
+        Label.LabelStyle estiloTendencias = new Label.LabelStyle();
+        estiloTendencias.font = fuenteTendencias;
+        estiloTendencias.fontColor = Color.valueOf("#8b9bb4"); 
 
         TextButton.TextButtonStyle estiloBoton = new TextButton.TextButtonStyle();
         estiloBoton.up = skin.newDrawable("fondo_boton");
         estiloBoton.font = skin.getFont("fuente");
         estiloBoton.fontColor = Color.valueOf("#E6EEEE");
 
-        Image fondoCelular = new Image(skin.getRegion("fondo_telefono"));
+        texturaTelefono = new Texture(Gdx.files.internal("telefono.png")); 
+        Image fondoCelular = new Image(texturaTelefono);
+        fondoCelular.setScaling(Scaling.fit);
         
         titular = new Label(noticiaActual.titular, estiloTexto);
         titular.setAlignment(Align.center);
+        
+        lblTendencias = new Label("", estiloTendencias);
+        lblTendencias.setAlignment(Align.center);
+        lblTendencias.setWrap(true);
+        
+        tendenciasBuilder = new StringBuilder();
+        actualizarTendenciasRedes(); 
 
         TextButton btnVerificar = new TextButton("Verificar", estiloBoton);
         TextButton btnCompartir = new TextButton("Compartir", estiloBoton);
@@ -118,18 +138,17 @@ public class Main extends ApplicationAdapter {
         raizUI.setFillParent(true); 
         Stack pilaCelular = new Stack(); 
         
-        Table ui = new Table(); 
-        ui.add(titular).padBottom(60).colspan(2).row(); 
-        ui.add(btnVerificar).width(140).height(45).padBottom(20).colspan(2).row();
-        ui.add(btnCompartir).width(130).height(45).padRight(10);
+        Table ui = new Table();
+        ui.add(lblTendencias).width(250).padBottom(10).colspan(2).row(); 
+        ui.add(titular).padBottom(28).colspan(2).row(); 
+        ui.add(btnVerificar).width(140).height(45).padBottom(13).colspan(2).row();
+        ui.add(btnCompartir).width(130).height(45).padRight(8);
         ui.add(btnIgnorar).width(130).height(45);
 
         pilaCelular.add(fondoCelular);
         pilaCelular.add(ui);
-        raizUI.add(pilaCelular).width(340).height(620);
+        raizUI.add(pilaCelular).width(1122).height(2046);
         escenario.addActor(raizUI);
-
-        // ------------------------------------------------------botones----------------------------------------------------------------------
 
         btnVerificar.addListener(new ClickListener() {
             @Override
@@ -164,8 +183,6 @@ public class Main extends ApplicationAdapter {
         btnPix.dispose();
     }
     
-    // ------------------------------------------- Procesamiento de Turno -----------------------------------------------------
-    
     public void procesarTurno(boolean compartido) {
         if (turnosRestantes <= 0) return; 
         
@@ -197,6 +214,8 @@ public class Main extends ApplicationAdapter {
             conteoActividad = 0;
             conteoErrores = 0;
             conteoAciertos = 0;
+            
+            actualizarTendenciasRedes();
         }
         
         if (turnosRestantes > 0) {
@@ -207,11 +226,38 @@ public class Main extends ApplicationAdapter {
             if (escenaActual != null) {
                 titular.setText("FIN DEL DÍA\n\n" + escenaActual.actualNews.titular);
                 titular.setColor(Color.valueOf("#591D67")); 
+                lblTendencias.setText("Tendencias finales consolidadas.");
             }
         }
     }
 
-    // ------------------------------------------------------------------------------------------------------------------------
+    public void actualizarTendenciasRedes() {
+        if (escenaActual == null) return;
+        
+        tendenciasBuilder.setLength(0); 
+        tendenciasBuilder.append("Trending:\n");
+        
+        recolectarTendenciasInOrden(escenaActual);
+        
+        lblTendencias.setText(tendenciasBuilder.toString());
+    }
+
+    //--recorrido-------inorden-------
+    private void recolectarTendenciasInOrden(Nodo nodo) {
+        if (nodo == null) return;
+        
+        recolectarTendenciasInOrden(nodo.nodoIzq);
+        
+        String[] lineas = nodo.actualNews.titular.split("\n");
+        if(lineas.length > 0) {
+            String hashtag = lineas[0].replaceAll("[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]", "");
+            if(!hashtag.isEmpty()) {
+                tendenciasBuilder.append("#").append(hashtag).append("  ");
+            }
+        }
+        
+        recolectarTendenciasInOrden(nodo.nodoDer);
+    }
 
     @Override
     public void render () {
@@ -233,6 +279,7 @@ public class Main extends ApplicationAdapter {
     public void dispose () {
         escenario.dispose();
         skin.dispose();
+        if (texturaTelefono != null) texturaTelefono.dispose();
+        if (fuenteTendencias != null) fuenteTendencias.dispose(); 
     }
-
 }
