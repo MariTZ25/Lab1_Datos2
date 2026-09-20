@@ -18,7 +18,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.Align;
-import com.badlogic.gdx.utils.Scaling; // NUEVO: Para que la imagen no se deforme
+import com.badlogic.gdx.utils.Scaling; 
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 
@@ -39,7 +39,7 @@ public class Main extends ApplicationAdapter {
     private Label lblTendencias; 
     private Texture texturaTelefono;
     private StringBuilder tendenciasBuilder; 
-    private BitmapFont fuenteTendencias; // NUEVO: Fuente más pequeña para los #
+    private BitmapFont fuenteTendencias; 
 
     @Override
     public void create () {
