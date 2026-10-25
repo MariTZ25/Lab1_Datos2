@@ -26,6 +26,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.Scaling;
 import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
@@ -35,27 +36,32 @@ public class Main extends ApplicationAdapter {
     private static final float ANCHO = 1100f;
     private static final float ALTO = 700f;
 
-//Aquí se maneja el ancho y alto del juego para que el fondo no se deformee
+    // Tamaño base del juego
     private static final float ANCHO_JUEGO = 800f;
     private static final float ALTO_JUEGO = 600f;
 
-    // Archivos ordenados para mayor comodidad 
+    // Están ordenados para mayor comodidad los archivos
     private static final String ARCHIVO_FONDO = "FondoApp.png";
     private static final String ARCHIVO_INFLUENCER = "influencer.png";
     private static final String ARCHIVO_ADVERTENCIA = "advertencia.png";
     private static final String ARCHIVO_BARRILETE = "barriletefondo.png";
 
-    // Barra de caos 
-    // nota de sustentación: cada error baja 20% 
-    private static final float PERDIDA_POR_ERROR = 0.2f; 
+    // Celular, tamaño base y escala 
+    private static final float ANCHO_CELULAR = 1122f;
+    private static final float ALTO_CELULAR = 2046f;
+    private static final float ESCALA_CELULAR = 1.25f;
+
+    // Barra de caos
+    // nota de sustentación: cada error baja 20%
+    private static final float PERDIDA_POR_ERROR = 0.2f;
     private static final float ANCHO_BARRA = 300f;
     private static final float ALTO_BARRA = 20f;
-    private static final float BARRA_X = 20f;
-    private static final float BARRA_Y = 545f;
+    private static final float BARRA_X = 5f;
+    private static final float BARRA_ARRIBA = 55f; 
 
     private Stage escenario;
     private FitViewport vistaMenu;
-    private FitViewport vistaJuego;
+    private ExtendViewport vistaJuego;
     private Skin skin;
     private BitmapFont fuente;
     private BitmapFont fuenteGrande;
@@ -70,8 +76,9 @@ public class Main extends ApplicationAdapter {
     private SpriteBatch fondoBatch;
 
     //La barra está llena
-    private float caos = 1f;         
+    private float caos = 1f;
     private Image barraRelleno;
+    private Group grupoCaos;
     private Texture texturaTelefono;
 
     private int rolActual = 0;
@@ -111,7 +118,7 @@ public class Main extends ApplicationAdapter {
     @Override
     public void create() {
         vistaMenu = new FitViewport(ANCHO, ALTO);
-        vistaJuego = new FitViewport(ANCHO_JUEGO, ALTO_JUEGO);
+        vistaJuego = new ExtendViewport(ANCHO_JUEGO, ALTO_JUEGO);
         escenario = new Stage(vistaMenu);
         Gdx.input.setInputProcessor(escenario);
         fondoBatch = new SpriteBatch();
@@ -157,9 +164,10 @@ public class Main extends ApplicationAdapter {
         fondoApp = cargarSiExiste(ARCHIVO_FONDO);
         advertencia = cargarSiExiste(ARCHIVO_ADVERTENCIA);
         barrilete = cargarSiExiste(ARCHIVO_BARRILETE);
-        skin.add("oscuro", texturaColor(new Color(0f, 0f, 0f, 0.65f)));
-        skin.add("blanco", texturaColor(Color.WHITE));              
-        skin.add("pista", texturaColor(Color.valueOf("#be00ab")));  
+        // Cuadro semitransparente ROSADO de la alerta (R, G, B, transparencia)
+        skin.add("rosado", texturaColor(new Color(1f, 0.41f, 0.71f, 0.65f)));
+        skin.add("blanco", texturaColor(Color.WHITE));
+        skin.add("pista", texturaColor(Color.valueOf("#be00ab")));
         texturaTelefono = cargarSiExiste("telefono.png");
     }
 
@@ -202,7 +210,7 @@ public class Main extends ApplicationAdapter {
         return b;
     }
 
-    //Ajusta la ventana al cambiar al juego
+    //Ajusta la ventana al cambiar entre menú y juego
     private void usarViewport(Viewport v) {
         if (escenario.getViewport() != v) {
             escenario.setViewport(v);
@@ -214,12 +222,11 @@ public class Main extends ApplicationAdapter {
         basePantalla(vistaMenu);
     }
 
-    //para limpiar el fondo y montar el fondo
+    //Limpia el escenario
     private void basePantalla(Viewport v) {
         usarViewport(v);
         colorFondo = (v == vistaJuego) ? FONDO_JUEGO : AZUL_FONDO;
         escenario.clear();
-
     }
 
     private TextButton.TextButtonStyle estiloBotonJuego() {
@@ -322,8 +329,6 @@ public class Main extends ApplicationAdapter {
     }
 
     private void actualizarRol(Table contenido) {
-        // Se elimina la información anterior salvo las flechas. La tabla tiene
-        // tres columnas y se reconstruye para mantener la navegación sencilla.
         contenido.clearChildren();
 
         TextButton anterior = boton("◀", new ClickListener() {
@@ -535,7 +540,10 @@ public class Main extends ApplicationAdapter {
             pilaCelular.add(fondoCelular);
         }
         pilaCelular.add(ui);
-        raizUI.add(pilaCelular).width(1122).height(2046);
+        
+        raizUI.add(pilaCelular)
+                .width(ANCHO_CELULAR * ESCALA_CELULAR)
+                .height(ALTO_CELULAR * ESCALA_CELULAR);
         escenario.addActor(raizUI);
         crearBarraCaos();
 
@@ -633,48 +641,53 @@ public class Main extends ApplicationAdapter {
         }
     }
 
-    //Barra de caos en la parte superior del juego.
+    //Barra de caos en la esquina superior izquierda 
     private void crearBarraCaos() {
-        Group grupo = new Group();
-        grupo.setPosition(BARRA_X, BARRA_Y);
+        grupoCaos = new Group();
 
         Image pista = new Image(skin.get("pista", Texture.class));
         pista.setSize(ANCHO_BARRA, ALTO_BARRA);
-        grupo.addActor(pista);
+        grupoCaos.addActor(pista);
 
         Texture texRelleno = (barrilete != null) ? barrilete : skin.get("blanco", Texture.class);
-barraRelleno = new Image(texRelleno);
-barraRelleno.setSize(ANCHO_BARRA * caos, ALTO_BARRA);
-if (barrilete == null) barraRelleno.setColor(colorCaos()); 
-grupo.addActor(barraRelleno);
+        barraRelleno = new Image(texRelleno);
+        barraRelleno.setSize(ANCHO_BARRA * caos, ALTO_BARRA);
+        if (barrilete == null) barraRelleno.setColor(colorCaos());
+        grupoCaos.addActor(barraRelleno);
 
         Label.LabelStyle estilo = new Label.LabelStyle(fuenteJuego, Color.WHITE);
         Label etiqueta = new Label("CAOS", estilo);
         etiqueta.setPosition(0, ALTO_BARRA + 4);
-        grupo.addActor(etiqueta);
+        grupoCaos.addActor(etiqueta);
 
-        escenario.addActor(grupo);
+        escenario.addActor(grupoCaos);
+        posicionarBarra();
     }
 
-    //Anima la barra hacia el nuevo nivel: se encoge y cambia de color suavemente.
+    private void posicionarBarra() {
+        if (grupoCaos != null) {
+            grupoCaos.setPosition(BARRA_X, escenario.getHeight() - BARRA_ARRIBA);
+        }
+    }
+
     private void actualizarBarraCaos() {
+        if (barraRelleno == null) return;
         barraRelleno.clearActions();
-if (barrilete != null) {
-    barraRelleno.addAction(Actions.sizeTo(ANCHO_BARRA * caos, ALTO_BARRA, 0.6f, Interpolation.smooth));
-} else {
-    barraRelleno.addAction(Actions.parallel(
-            Actions.sizeTo(ANCHO_BARRA * caos, ALTO_BARRA, 0.6f, Interpolation.smooth),
-            Actions.color(colorCaos(), 0.6f)));
-}
+        if (barrilete != null) {
+            barraRelleno.addAction(Actions.sizeTo(ANCHO_BARRA * caos, ALTO_BARRA, 0.6f, Interpolation.smooth));
+        } else {
+            barraRelleno.addAction(Actions.parallel(
+                    Actions.sizeTo(ANCHO_BARRA * caos, ALTO_BARRA, 0.6f, Interpolation.smooth),
+                    Actions.color(colorCaos(), 0.6f)));
+        }
     }
 
     private Color colorCaos() {
-        if (caos > 0.6f) return Color.valueOf("#4CAF50");   
-        if (caos > 0.3f) return Color.valueOf("#F2C94C");   
-        return Color.valueOf("#DF0E0B");                    
+        if (caos > 0.6f) return Color.valueOf("#4CAF50");
+        if (caos > 0.3f) return Color.valueOf("#F2C94C");
+        return Color.valueOf("#DF0E0B");
     }
 
-    /** Dibuja FondoApp.png cubriendo toda la ventana (recorta lo que sobre, sin deformar). */
     private void dibujarFondo() {
         if (fondoApp == null) return;
         int w = Gdx.graphics.getBackBufferWidth();
@@ -690,15 +703,14 @@ if (barrilete != null) {
         fondoBatch.draw(fondoApp, (w - dw) / 2f, (h - dh) / 2f, dw, dh);
         fondoBatch.end();
 
-        escenario.getViewport().apply(); // restaura el viewport del stage
+        escenario.getViewport().apply(); 
     }
 
-    /** Ventana encima del juego con el personaje que advierte que se elija bien. */
     private void mostrarAdvertencia() {
         final Table overlay = new Table();
-        overlay.setFillParent(true);
-        overlay.setTouchable(Touchable.enabled); // bloquea los clics en lo que hay detrás
-        overlay.background(skin.newDrawable("oscuro"));
+        overlay.setFillParent(true); 
+        overlay.setTouchable(Touchable.enabled); 
+        overlay.background(skin.newDrawable("rosado"));
 
         if (advertencia != null) {
             Image img = new Image(advertencia);
@@ -734,7 +746,7 @@ if (barrilete != null) {
         lblTendencias.setText(tendenciasBuilder.toString());
     }
 
-    //--recorrido-------inorden-------
+    //--recorrido inorden--------------------------------------------------------------------------------------
     private void recolectarTendenciasInOrden(Nodo nodo) {
         if (nodo == null) return;
 
@@ -825,12 +837,13 @@ if (barrilete != null) {
     @Override
     public void resize(int width, int height) {
         escenario.getViewport().update(width, height, true);
+        posicionarBarra(); 
     }
 
     @Override
     public void dispose() {
         if (escenario != null) escenario.dispose();
-        if (skin != null) skin.dispose(); 
+        if (skin != null) skin.dispose();
         if (fondo != null) fondo.dispose();
         if (candidato != null) candidato.dispose();
         if (chica1 != null) chica1.dispose();
