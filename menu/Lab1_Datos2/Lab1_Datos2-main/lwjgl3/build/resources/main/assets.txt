@@ -1,5 +1,0 @@
-MilanyFont.fnt
-MilanyFont.png
-candidato.png
-chica1.png
-chica2.png
